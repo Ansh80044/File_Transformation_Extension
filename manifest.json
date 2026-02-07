@@ -1,0 +1,15 @@
+
+
+
+{
+  "manifest_version": 3,
+  "name": "File Transformer",
+  "version": "1.0",
+  "description": "Client-side file transformation tool.",
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Open Transformer"
+  },
+  "permissions": []
+}

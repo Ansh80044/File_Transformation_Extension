@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { width: 300px; padding: 15px; font-family: sans-serif; }
+    h3 { margin-top: 0; }
+    .control { margin-bottom: 10px; }
+    #status { margin-top: 15px; padding: 10px; background: #f0f0f0; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h3>File Transformer</h3>
+
+  <div class="control">
+    <label><input type="checkbox" id="forceJpg"> Convert to JPG</label>
+  </div>
+  <div class="control">
+    <label><input type="checkbox" id="compress"> Compress (Max 200KB)</label>
+  </div>
+
+  <input type="file" id="fileInput">
+
+  <div id="status">Waiting for file...</div>
+
+  <script src="transformer.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
