@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Local File Transformer",
+  "version": "1.0",
+  "description": "Securely transforms and compresses files directly in the browser.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Open Transformer"
+  },
+  "permissions": []
+}
