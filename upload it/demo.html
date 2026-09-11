@@ -50,7 +50,7 @@
     
     .upload-section {
       background: #f8f9fa;
-      border: 2px dashed #dee2e6;
+      border: 2px dashed #cbd5e1;
       border-radius: 8px;
       padding: 40px;
       text-align: center;
@@ -471,256 +471,271 @@
   <script src="transformUtilities.js"></script>
   
   <script>
-    // Get elements
-    const uploadSection = document.getElementById('uploadSection');
-    const fileInput = document.getElementById('fileInput');
-    const presetButtons = document.querySelectorAll('[data-preset]');
-    const customConstraints = document.getElementById('customConstraints');
-    const results = document.getElementById('results');
-    const progressBar = document.getElementById('progressBar');
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
-    
-    // State
-    let selectedPreset = 'web-optimized';
-    let currentFile = null;
-    let transformedFile = null;
-    
-    // Use the module functions
-    const { transformFile, analyzeMetadata, formatBytes, getConstraintPreset, validateConstraints } = window.FileTransformModule || {};
-    
-    // Check if module loaded
-    if (!transformFile) {
-      alert('Error: Transformation module not loaded. Make sure fileTransformModule.js is in the same directory!');
-    }
-    
-    // Upload section click
-    uploadSection.addEventListener('click', () => {
-      fileInput.click();
-    });
-    
-    // Prevent default drag behavior
-    uploadSection.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadSection.classList.add('dragover');
-    });
-    
-    uploadSection.addEventListener('dragleave', () => {
-      uploadSection.classList.remove('dragover');
-    });
-    
-    uploadSection.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadSection.classList.remove('dragover');
+    (function() {
+      // Get elements
+      const uploadSection = document.getElementById('uploadSection');
+      const fileInput = document.getElementById('fileInput');
+      const presetButtons = document.querySelectorAll('[data-preset]');
+      const customConstraints = document.getElementById('customConstraints');
+      const results = document.getElementById('results');
+      const progressBar = document.getElementById('progressBar');
+      const progressFill = document.getElementById('progressFill');
+      const progressText = document.getElementById('progressText');
       
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        handleFile(files[0]);
+      // State
+      let selectedPreset = 'web-optimized';
+      let currentFile = null;
+      let transformedFile = null;
+      
+      // Use the module functions safely
+      const FT = Object.assign({}, window.FileTransformUtilities, window.FileTransformModule);
+      const transformFile = FT.transformFile;
+      const analyzeMetadata = FT.analyzeMetadata;
+      const formatBytes = FT.formatBytes;
+      const getConstraintPreset = FT.getConstraintPreset;
+      const validateConstraints = FT.validateConstraints;
+      const generateTransformationReport = FT.generateTransformationReport;
+      
+      // Check if module loaded
+      if (!transformFile) {
+        console.error('Error: Transformation module not loaded.');
+        alert('Error: Transformation module not loaded. Make sure fileTransformModule.js is in the same directory!');
       }
-    });
-    
-    // File input change
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        handleFile(e.target.files[0]);
-      }
-    });
-    
-    // Preset selection
-    presetButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        presetButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        selectedPreset = btn.dataset.preset;
+      
+      // Upload section click
+      uploadSection.addEventListener('click', () => {
+        fileInput.click();
+      });
+      
+      // Prevent default drag behavior
+      uploadSection.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadSection.classList.add('dragover');
+      });
+      
+      uploadSection.addEventListener('dragleave', () => {
+        uploadSection.classList.remove('dragover');
+      });
+      
+      uploadSection.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
         
-        if (selectedPreset === 'custom') {
-          customConstraints.classList.add('show');
-        } else {
-          customConstraints.classList.remove('show');
-        }
-        
-        // If we have a file, re-process with new preset
-        if (currentFile) {
-          processFile(currentFile);
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFile(files[0]);
         }
       });
-    });
-    
-    // Set default preset
-    document.querySelector('[data-preset="web-optimized"]').classList.add('active');
-    
-    // Handle file
-    function handleFile(file) {
-      // Check if it's an image
-      if (!file.type.startsWith('image/')) {
-        showAlert('Please select an image file (JPG, PNG, WebP, GIF, BMP)', 'error');
-        return;
-      }
       
-      currentFile = file;
-      processFile(file);
-    }
-    
-    // Process file
-    async function processFile(file) {
-      // Show progress
-      results.classList.remove('show');
-      progressBar.classList.add('show');
-      progressText.classList.add('show');
-      progressFill.style.width = '20%';
-      progressText.textContent = 'Analyzing file...';
+      // File input change
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          handleFile(e.target.files[0]);
+        }
+      });
       
-      try {
-        // Get constraints
-        const constraints = getConstraints();
-        
-        // Validate constraints
-        const validation = validateConstraints(constraints);
-        if (!validation.isValid) {
-          throw new Error('Invalid constraints: ' + validation.errors.join(', '));
+      // Preset selection
+      presetButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          presetButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedPreset = btn.dataset.preset;
+          
+          if (selectedPreset === 'custom') {
+            customConstraints.classList.add('show');
+          } else {
+            customConstraints.classList.remove('show');
+          }
+          
+          // If we have a file, re-process with new preset
+          if (currentFile) {
+            processFile(currentFile);
+          }
+        });
+      });
+      
+      // Set default preset
+      const defaultBtn = document.querySelector('[data-preset="web-optimized"]');
+      if (defaultBtn) defaultBtn.classList.add('active');
+      
+      // Handle file
+      function handleFile(file) {
+        // Check if it's an image
+        if (!file.type.startsWith('image/')) {
+          showAlert('Please select an image file (JPG, PNG, WebP, GIF, BMP)', 'error');
+          return;
         }
         
-        progressFill.style.width = '40%';
-        progressText.textContent = 'Transforming...';
+        currentFile = file;
+        processFile(file);
+      }
+      
+      // Process file
+      async function processFile(file) {
+        // Show progress
+        results.classList.remove('show');
+        progressBar.classList.add('show');
+        progressText.classList.add('show');
+        progressFill.style.width = '20%';
+        progressText.textContent = 'Analyzing file...';
         
-        // Start timer
-        const startTime = performance.now();
-        
-        // Transform file
-        const result = await transformFile(file, validation.normalized);
-        
-        // End timer
-        const endTime = performance.now();
-        const duration = ((endTime - startTime) / 1000).toFixed(2);
-        
-        progressFill.style.width = '100%';
-        progressText.textContent = 'Complete!';
-        
-        // Hide progress after delay
-        setTimeout(() => {
+        try {
+          // Get constraints
+          const constraints = getConstraints();
+          
+          // Validate constraints
+          const validation = validateConstraints(constraints);
+          if (!validation.isValid) {
+            throw new Error('Invalid constraints: ' + validation.errors.join(', '));
+          }
+          
+          progressFill.style.width = '40%';
+          progressText.textContent = 'Transforming...';
+          
+          // Start timer
+          const startTime = performance.now();
+          
+          // Transform file
+          const result = await transformFile(file, validation.normalized);
+          
+          // End timer
+          const endTime = performance.now();
+          const duration = ((endTime - startTime) / 1000).toFixed(2);
+          
+          progressFill.style.width = '100%';
+          progressText.textContent = 'Complete!';
+          
+          // Hide progress after delay
+          setTimeout(() => {
+            progressBar.classList.remove('show');
+            progressText.classList.remove('show');
+          }, 400);
+          
+          // Show results
+          displayResults(result, duration);
+          
+        } catch (error) {
+          console.error('Transformation error:', error);
           progressBar.classList.remove('show');
           progressText.classList.remove('show');
-        }, 500);
+          showAlert('Error: ' + error.message, 'error');
+        }
+      }
+      
+      // Get constraints based on preset
+      function getConstraints() {
+        if (selectedPreset === 'custom') {
+          const maxSize = document.getElementById('maxSize').value;
+          const maxWidth = document.getElementById('maxWidth').value;
+          const maxHeight = document.getElementById('maxHeight').value;
+          const formats = Array.from(document.querySelectorAll('.format-checkboxes input:checked'))
+            .map(cb => cb.value);
+          
+          return {
+            ...(maxSize && { maxSize }),
+            ...(maxWidth && { maxWidth: parseInt(maxWidth) }),
+            ...(maxHeight && { maxHeight: parseInt(maxHeight) }),
+            ...(formats.length > 0 && { allowedFormats: formats })
+          };
+        } else {
+          return getConstraintPreset(selectedPreset);
+        }
+      }
+      
+      // Display results
+      function displayResults(result, duration) {
+        transformedFile = result.transformedFile;
+        
+        // Show success/warning alert
+        if (result.success) {
+          showAlert('✓ Transformation completed successfully!', 'success');
+        } else {
+          showAlert('⚠ Transformation completed with issues: ' + (result.validation ? result.validation.issues.join(', ') : 'Unknown'), 'warning');
+        }
+        
+        // Stats
+        document.getElementById('originalSize').textContent = formatBytes(result.originalMetadata.size);
+        document.getElementById('newSize').textContent = formatBytes(result.newMetadata.size);
+        
+        const reduction = result.originalMetadata.size - result.newMetadata.size;
+        const reductionPercent = ((reduction / result.originalMetadata.size) * 100).toFixed(1);
+        
+        if (reduction > 0) {
+          document.getElementById('sizeReduction').textContent = `-${reductionPercent}%`;
+          document.getElementById('sizeReduction').style.color = '#28a745';
+        } else {
+          document.getElementById('sizeReduction').textContent = `+${Math.abs(reductionPercent)}%`;
+          document.getElementById('sizeReduction').style.color = '#dc3545';
+        }
+        
+        document.getElementById('processingTime').textContent = `${duration}s`;
+        
+        // Preview images
+        document.getElementById('previewOriginal').src = URL.createObjectURL(currentFile);
+        if (result.newMetadata && result.newMetadata.format === 'pdf') {
+          document.getElementById('previewTransformed').alt = 'PDF Document Generated';
+        } else {
+          document.getElementById('previewTransformed').src = URL.createObjectURL(result.transformedFile);
+        }
+        
+        // Dimensions
+        if (result.originalMetadata.width) {
+          document.getElementById('originalDimensions').textContent = 
+            `${result.originalMetadata.width} × ${result.originalMetadata.height}px`;
+        }
+        
+        if (result.newMetadata && result.newMetadata.width) {
+          document.getElementById('newDimensions').textContent = 
+            `${result.newMetadata.width} × ${result.newMetadata.height}px`;
+        }
+        
+        // Transformations
+        const transformationsList = document.getElementById('transformationsItems');
+        transformationsList.innerHTML = '';
+        
+        if (result.transformationsApplied && result.transformationsApplied.length > 0) {
+          result.transformationsApplied.forEach(transform => {
+            const li = document.createElement('li');
+            li.textContent = transform;
+            transformationsList.appendChild(li);
+          });
+        } else {
+          const li = document.createElement('li');
+          li.textContent = 'No transformations needed - file already meets constraints';
+          li.style.color = '#28a745';
+          transformationsList.appendChild(li);
+        }
+        
+        // Download button
+        const downloadBtn = document.getElementById('downloadBtn');
+        downloadBtn.onclick = (e) => {
+          e.preventDefault();
+          const url = URL.createObjectURL(result.transformedFile);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = result.transformedFile.name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 200);
+        };
         
         // Show results
-        displayResults(result, duration);
-        
-      } catch (error) {
-        console.error('Transformation error:', error);
-        progressBar.classList.remove('show');
-        progressText.classList.remove('show');
-        showAlert('Error: ' + error.message, 'error');
-      }
-    }
-    
-    // Get constraints based on preset
-    function getConstraints() {
-      if (selectedPreset === 'custom') {
-        const maxSize = document.getElementById('maxSize').value;
-        const maxWidth = document.getElementById('maxWidth').value;
-        const maxHeight = document.getElementById('maxHeight').value;
-        const formats = Array.from(document.querySelectorAll('.format-checkboxes input:checked'))
-          .map(cb => cb.value);
-        
-        return {
-          ...(maxSize && { maxSize }),
-          ...(maxWidth && { maxWidth: parseInt(maxWidth) }),
-          ...(maxHeight && { maxHeight: parseInt(maxHeight) }),
-          ...(formats.length > 0 && { allowedFormats: formats })
-        };
-      } else {
-        return getConstraintPreset(selectedPreset);
-      }
-    }
-    
-    // Display results
-    function displayResults(result, duration) {
-      transformedFile = result.transformedFile;
-      
-      // Show success/warning alert
-      if (result.success) {
-        showAlert('✓ Transformation completed successfully!', 'success');
-      } else {
-        showAlert('⚠ Transformation completed with issues: ' + result.validation.issues.join(', '), 'warning');
+        results.classList.add('show');
       }
       
-      // Stats
-      document.getElementById('originalSize').textContent = formatBytes(result.originalMetadata.size);
-      document.getElementById('newSize').textContent = formatBytes(result.newMetadata.size);
-      
-      const reduction = result.originalMetadata.size - result.newMetadata.size;
-      const reductionPercent = ((reduction / result.originalMetadata.size) * 100).toFixed(1);
-      
-      if (reduction > 0) {
-        document.getElementById('sizeReduction').textContent = `-${reductionPercent}%`;
-        document.getElementById('sizeReduction').style.color = '#28a745';
-      } else {
-        document.getElementById('sizeReduction').textContent = `+${Math.abs(reductionPercent)}%`;
-        document.getElementById('sizeReduction').style.color = '#dc3545';
+      // Show alert
+      function showAlert(message, type) {
+        const alertContainer = document.getElementById('alertContainer');
+        alertContainer.innerHTML = `
+          <div class="alert alert-${type}">
+            ${message}
+          </div>
+        `;
       }
       
-      document.getElementById('processingTime').textContent = `${duration}s`;
-      
-      // Preview images
-      document.getElementById('previewOriginal').src = URL.createObjectURL(currentFile);
-      document.getElementById('previewTransformed').src = URL.createObjectURL(result.transformedFile);
-      
-      // Dimensions
-      if (result.originalMetadata.width) {
-        document.getElementById('originalDimensions').textContent = 
-          `${result.originalMetadata.width} × ${result.originalMetadata.height}px`;
-      }
-      
-      if (result.newMetadata.width) {
-        document.getElementById('newDimensions').textContent = 
-          `${result.newMetadata.width} × ${result.newMetadata.height}px`;
-      }
-      
-      // Transformations
-      const transformationsList = document.getElementById('transformationsItems');
-      transformationsList.innerHTML = '';
-      
-      if (result.transformationsApplied.length > 0) {
-        result.transformationsApplied.forEach(transform => {
-          const li = document.createElement('li');
-          li.textContent = transform;
-          transformationsList.appendChild(li);
-        });
-      } else {
-        const li = document.createElement('li');
-        li.textContent = 'No transformations needed - file already meets constraints';
-        li.style.color = '#28a745';
-        transformationsList.appendChild(li);
-      }
-      
-      // Download button
-      const downloadBtn = document.getElementById('downloadBtn');
-      downloadBtn.onclick = (e) => {
-        e.preventDefault();
-        const url = URL.createObjectURL(result.transformedFile);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = result.transformedFile.name;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-      };
-      
-      // Show results
-      results.classList.add('show');
-    }
-    
-    // Show alert
-    function showAlert(message, type) {
-      const alertContainer = document.getElementById('alertContainer');
-      alertContainer.innerHTML = `
-        <div class="alert alert-${type}">
-          ${message}
-        </div>
-      `;
-    }
-    
-    console.log('🚀 File Transformation Module Demo Ready!');
-    console.log('Upload an image to get started.');
+      console.log('🚀 File Transformation Module Demo Ready!');
+    })();
   </script>
 </body>
 </html>

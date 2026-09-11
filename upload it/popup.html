@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local File Transformer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      width: 400px;
+      min-height: 520px;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #1e293b;
+      margin-bottom: 14px;
+    }
+
+    .header-icon {
+      font-size: 22px;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    }
+
+    .header-title h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: #ffffff;
+    }
+
+    .header-title p {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .dropzone {
+      border: 2px dashed #334155;
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 14px;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: #6366f1;
+      background: #1e1b4b;
+      transform: translateY(-1px);
+    }
+
+    .dropzone-icon {
+      font-size: 28px;
+      margin-bottom: 6px;
+    }
+
+    .dropzone-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+
+    .dropzone-sub {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+
+    .presets-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .preset-chip {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 7px 4px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .preset-chip:hover {
+      border-color: #6366f1;
+      color: #fff;
+    }
+
+    .preset-chip.active {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border-color: #6366f1;
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+    }
+
+    .custom-box {
+      display: none;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    .custom-box.show {
+      display: block;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .form-group {
+      flex: 1;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 10px;
+      color: #94a3b8;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+    }
+
+    .form-group input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #f8fafc;
+      padding: 6px 8px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .form-group input:focus {
+      border-color: #6366f1;
+    }
+
+    .format-pills {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .format-pills label {
+      font-size: 11px;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+    }
+
+    .progress-bar-container {
+      display: none;
+      background: #1e293b;
+      border-radius: 6px;
+      height: 6px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .progress-bar-container.show {
+      display: block;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      transition: width 0.3s ease;
+    }
+
+    .results-card {
+      display: none;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .results-card.show {
+      display: block;
+    }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .metric-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px 6px;
+      text-align: center;
+    }
+
+    .metric-label {
+      font-size: 9px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .metric-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .metric-val.green {
+      color: #10b981;
+    }
+
+    .preview-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .preview-box {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 6px;
+      text-align: center;
+    }
+
+    .preview-box h4 {
+      font-size: 10px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .preview-box img {
+      max-width: 100%;
+      height: 80px;
+      object-fit: contain;
+      border-radius: 4px;
+      background: #1e293b;
+    }
+
+    .download-btn {
+      display: block;
+      width: 100%;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #ffffff;
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .download-btn:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      transform: translateY(-1px);
+    }
+
+    .alert-msg {
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+
+    .alert-msg.error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+    }
+
+    .alert-msg.success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid #10b981;
+      color: #6ee7b7;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-icon">⚡</div>
+    <div class="header-title">
+      <h1>OptiUpload Transformer</h1>
+      <p>100% Client-Side Compression & Conversion</p>
+    </div>
+  </div>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dropzone-icon">📁</div>
+    <div class="dropzone-text">Drop image or click to browse</div>
+    <div class="dropzone-sub">Supports JPG, PNG, WebP, GIF, BMP, PDF</div>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+
+  <div class="section-title">Optimization Preset</div>
+  <div class="presets-grid">
+    <button class="preset-chip active" data-preset="web-optimized">🌐 Web</button>
+    <button class="preset-chip" data-preset="thumbnail">🖼️ Thumb</button>
+    <button class="preset-chip" data-preset="email-attachment">📧 Email</button>
+    <button class="preset-chip" data-preset="mobile-upload">📱 Mobile</button>
+    <button class="preset-chip" data-preset="profile-picture">👤 Profile</button>
+    <button class="preset-chip" data-preset="custom">⚙️ Custom</button>
+  </div>
+
+  <div class="custom-box" id="customBox">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Max Size</label>
+        <input type="text" id="maxSize" placeholder="500KB, 1MB">
+      </div>
+      <div class="form-group">
+        <label>Max W × H</label>
+        <div style="display: flex; gap: 4px;">
+          <input type="number" id="maxWidth" placeholder="1920">
+          <input type="number" id="maxHeight" placeholder="1080">
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Formats</label>
+      <div class="format-pills">
+        <label><input type="checkbox" value="jpg" checked> JPG</label>
+        <label><input type="checkbox" value="png" checked> PNG</label>
+        <label><input type="checkbox" value="webp" checked> WebP</label>
+        <label><input type="checkbox" value="pdf"> PDF</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="progress-bar-container" id="progressBar">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <div class="results-card" id="resultsCard">
+    <div class="metrics-row">
+      <div class="metric-box">
+        <div class="metric-label">Original</div>
+        <div class="metric-val" id="origSizeVal">-</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-label">Optimized</div>
+        <div class="metric-val" id="newSizeVal">-</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-label">Savings</div>
+        <div class="metric-val green" id="savingsVal">-</div>
+      </div>
+    </div>
+
+    <div class="preview-row">
+      <div class="preview-box">
+        <h4>Before</h4>
+        <img id="origImg" src="" alt="Before">
+      </div>
+      <div class="preview-box">
+        <h4>After</h4>
+        <img id="transImg" src="" alt="After">
+      </div>
+    </div>
+
+    <button class="download-btn" id="downloadBtn">📥 Save Optimized File</button>
+  </div>
+
+  <script src="fileTransformModule.js"></script>
+  <script src="transformUtilities.js"></script>
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const presetChips = document.querySelectorAll('.preset-chip');
+    const customBox = document.getElementById('customBox');
+    const resultsCard = document.getElementById('resultsCard');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const alertBox = document.getElementById('alertBox');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let selectedPreset = 'web-optimized';
+    let currentFile = null;
+    let transformedResult = null;
+
+    const {
+      transformFile,
+      formatBytes,
+      getConstraintPreset,
+      validateConstraints
+    } = Object.assign({}, window.FileTransformUtilities, window.FileTransformModule);
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    });
+
+    presetChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        presetChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        selectedPreset = chip.dataset.preset;
+        customBox.classList.toggle('show', selectedPreset === 'custom');
+        if (currentFile) processFile(currentFile);
+      });
+    });
+
+    function handleFile(file) {
+      if (!file.type.startsWith('image/')) {
+        showAlert('Please upload an image file (JPG, PNG, WebP, GIF, BMP)', 'error');
+        return;
+      }
+      currentFile = file;
+      processFile(file);
+    }
+
+    async function processFile(file) {
+      alertBox.innerHTML = '';
+      resultsCard.classList.remove('show');
+      progressBar.classList.add('show');
+      progressFill.style.width = '35%';
+
+      try {
+        const constraints = getActiveConstraints();
+        const validation = validateConstraints(constraints);
+        if (!validation.isValid) throw new Error(validation.errors.join(', '));
+
+        progressFill.style.width = '70%';
+        const result = await transformFile(file, validation.normalized);
+
+        progressFill.style.width = '100%';
+        setTimeout(() => progressBar.classList.remove('show'), 300);
+
+        transformedResult = result;
+        displayResults(result);
+      } catch (err) {
+        progressBar.classList.remove('show');
+        showAlert(err.message, 'error');
+      }
+    }
+
+    function getActiveConstraints() {
+      if (selectedPreset === 'custom') {
+        const maxSize = document.getElementById('maxSize').value;
+        const maxWidth = document.getElementById('maxWidth').value;
+        const maxHeight = document.getElementById('maxHeight').value;
+        const formats = Array.from(document.querySelectorAll('.format-pills input:checked')).map(c => c.value);
+        return {
+          ...(maxSize && { maxSize }),
+          ...(maxWidth && { maxWidth: parseInt(maxWidth) }),
+          ...(maxHeight && { maxHeight: parseInt(maxHeight) }),
+          ...(formats.length > 0 && { allowedFormats: formats })
+        };
+      }
+      return getConstraintPreset(selectedPreset);
+    }
+
+    function displayResults(result) {
+      const origSize = result.originalMetadata.size;
+      const newSize = result.newMetadata.size;
+      const savings = origSize - newSize;
+      const savingsPct = origSize > 0 ? ((savings / origSize) * 100).toFixed(1) : 0;
+
+      document.getElementById('origSizeVal').textContent = formatBytes(origSize);
+      document.getElementById('newSizeVal').textContent = formatBytes(newSize);
+      document.getElementById('savingsVal').textContent = savings > 0 ? `-${savingsPct}%` : `+${Math.abs(savingsPct)}%`;
+
+      document.getElementById('origImg').src = URL.createObjectURL(currentFile);
+      if (result.newMetadata.format !== 'pdf') {
+        document.getElementById('transImg').src = URL.createObjectURL(result.transformedFile);
+      }
+
+      resultsCard.classList.add('show');
+      showAlert('Optimization complete!', 'success');
+    }
+
+    downloadBtn.addEventListener('click', () => {
+      if (!transformedResult) return;
+      const url = URL.createObjectURL(transformedResult.transformedFile);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = transformedResult.transformedFile.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 200);
+    });
+
+    function showAlert(msg, type) {
+      alertBox.innerHTML = `<div class="alert-msg ${type}">${msg}</div>`;
+    }
+  </script>
+</body>
+</html>

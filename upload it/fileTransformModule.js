@@ -482,142 +482,105 @@ async function convertImageFormat(file, targetFormat, quality = CONFIG.QUALITY.H
  * @param {string} originalName - Original filename
  * @returns {Promise<Blob>} PDF blob
  */
+/**
+ * Convert image to PDF using canvas
+ * @param {HTMLImageElement} img - Image to convert
+ * @param {string} originalName - Original filename
+ * @returns {Promise<Blob>} PDF blob
+ */
 async function convertImageToPDF(img, originalName) {
-  // For browser-based PDF generation, we'll create a simple PDF structure
-  // This is a simplified implementation. For production, consider using jsPDF library
-  
-  // Create canvas with image
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   
-  // Calculate dimensions to fit A4 with margins
-  const maxWidth = CONFIG.PDF.A4_WIDTH - (CONFIG.PDF.MARGIN * 2);
-  const maxHeight = CONFIG.PDF.A4_HEIGHT - (CONFIG.PDF.MARGIN * 2);
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  ctx.drawImage(img, 0, 0);
   
-  let width = img.naturalWidth;
-  let height = img.naturalHeight;
-  
-  // Scale to fit page
-  const widthRatio = maxWidth / width;
-  const heightRatio = maxHeight / height;
-  const ratio = Math.min(widthRatio, heightRatio);
-  
-  width = width * ratio;
-  height = height * ratio;
-  
-  canvas.width = width;
-  canvas.height = height;
-  ctx.drawImage(img, 0, 0, width, height);
-  
-  // Convert to high-quality image
+  // Convert to high-quality JPEG for embedding in PDF
   const imageBlob = await new Promise((resolve, reject) => {
     canvas.toBlob(
-      (blob) => blob ? resolve(blob) : reject(new Error('Failed to create image')),
+      (blob) => blob ? resolve(blob) : reject(new Error('Failed to create image for PDF')),
       'image/jpeg',
       0.95
     );
   });
   
-  // Create simple PDF structure
-  // Note: This is a basic implementation. For full PDF features, use a library
   const imageData = await readFileAsArrayBuffer(imageBlob);
-  const base64Image = btoa(
-    new Uint8Array(imageData).reduce((data, byte) => data + String.fromCharCode(byte), '')
-  );
+  const jpegBytes = new Uint8Array(imageData);
   
-  // Build minimal PDF structure
-  const pdfContent = buildMinimalPDF(base64Image, width, height);
-  
-  return new Blob([pdfContent], { type: 'application/pdf' });
+  const pdfBytes = buildMinimalPDF(jpegBytes, img.naturalWidth, img.naturalHeight);
+  return new Blob([pdfBytes], { type: 'application/pdf' });
 }
 
 /**
- * Build a minimal PDF with embedded JPEG image
- * @param {string} base64Image - Base64 encoded image
+ * Build a valid minimal PDF with embedded JPEG image
+ * @param {Uint8Array} jpegBytes - JPEG image binary data
  * @param {number} width - Image width
  * @param {number} height - Image height
- * @returns {string} PDF content
+ * @param {number} pageWidth - Page width in points (A4 default)
+ * @param {number} pageHeight - Page height in points (A4 default)
+ * @param {number} margin - Margin in points
+ * @returns {Uint8Array} Binary PDF content
  */
-function buildMinimalPDF(base64Image, width, height) {
-  const pageWidth = CONFIG.PDF.A4_WIDTH;
-  const pageHeight = CONFIG.PDF.A4_HEIGHT;
-  const margin = CONFIG.PDF.MARGIN;
+function buildMinimalPDF(jpegBytes, width, height, pageWidth = CONFIG.PDF.A4_WIDTH, pageHeight = CONFIG.PDF.A4_HEIGHT, margin = CONFIG.PDF.MARGIN) {
+  const maxWidth = pageWidth - (margin * 2);
+  const maxHeight = pageHeight - (margin * 2);
+  const ratio = Math.min(maxWidth / width, maxHeight / height, 1.0);
+  const renderWidth = width * ratio;
+  const renderHeight = height * ratio;
+  const x = margin + (maxWidth - renderWidth) / 2;
+  const y = margin + (maxHeight - renderHeight) / 2;
+
+  const encoder = new TextEncoder();
   
-  const x = margin;
-  const y = pageHeight - margin - height;
+  const header = `%PDF-1.4\n%\xE2\xE3\xCF\xD3\n`;
+  const obj1 = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`;
+  const obj2 = `2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`;
+  const obj3 = `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth.toFixed(2)} ${pageHeight.toFixed(2)}] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`;
   
-  // Build PDF structure (simplified)
-  const pdf = `%PDF-1.4
-1 0 obj
-<<
-/Type /Catalog
-/Pages 2 0 R
->>
-endobj
-2 0 obj
-<<
-/Type /Pages
-/Kids [3 0 R]
-/Count 1
->>
-endobj
-3 0 obj
-<<
-/Type /Page
-/Parent 2 0 R
-/Resources <<
-/XObject <<
-/Im1 4 0 R
->>
->>
-/MediaBox [0 0 ${pageWidth} ${pageHeight}]
-/Contents 5 0 R
->>
-endobj
-4 0 obj
-<<
-/Type /XObject
-/Subtype /Image
-/Width ${Math.floor(width)}
-/Height ${Math.floor(height)}
-/ColorSpace /DeviceRGB
-/BitsPerComponent 8
-/Filter /DCTDecode
-/Length ${base64Image.length}
->>
-stream
-${atob(base64Image)}
-endstream
-endobj
-5 0 obj
-<<
-/Length 44
->>
-stream
-q
-${width} 0 0 ${height} ${x} ${y} cm
-/Im1 Do
-Q
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000270 00000 n 
-0000000${(470 + base64Image.length).toString().padStart(3, '0')} 00000 n 
-trailer
-<<
-/Size 6
-/Root 1 0 R
->>
-startxref
-${514 + base64Image.length}
-%%EOF`;
+  const obj4Head = `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${Math.floor(width)} /Height ${Math.floor(height)} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`;
+  const obj4Tail = `\nendstream\nendobj\n`;
   
-  return pdf;
+  const contentStream = `q\n${renderWidth.toFixed(2)} 0 0 ${renderHeight.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm\n/Im1 Do\nQ\n`;
+  const obj5 = `5 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}endstream\nendobj\n`;
+
+  const hBytes = encoder.encode(header);
+  const o1Bytes = encoder.encode(obj1);
+  const o2Bytes = encoder.encode(obj2);
+  const o3Bytes = encoder.encode(obj3);
+  const o4HBytes = encoder.encode(obj4Head);
+  const o4TBytes = encoder.encode(obj4Tail);
+  const o5Bytes = encoder.encode(obj5);
+
+  const offset1 = hBytes.length;
+  const offset2 = offset1 + o1Bytes.length;
+  const offset3 = offset2 + o2Bytes.length;
+  const offset4 = offset3 + o3Bytes.length;
+  const offset5 = offset4 + o4HBytes.length + jpegBytes.length + o4TBytes.length;
+  const xrefOffset = offset5 + o5Bytes.length;
+
+  function pad(num) {
+    return String(num).padStart(10, '0');
+  }
+
+  const xref = `xref\n0 6\n0000000000 65535 f \r\n${pad(offset1)} 00000 n \r\n${pad(offset2)} 00000 n \r\n${pad(offset3)} 00000 n \r\n${pad(offset4)} 00000 n \r\n${pad(offset5)} 00000 n \r\ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  const xrefBytes = encoder.encode(xref);
+
+  const totalLength = xrefOffset + xrefBytes.length;
+  const pdfBytes = new Uint8Array(totalLength);
+  
+  let pos = 0;
+  pdfBytes.set(hBytes, pos); pos += hBytes.length;
+  pdfBytes.set(o1Bytes, pos); pos += o1Bytes.length;
+  pdfBytes.set(o2Bytes, pos); pos += o2Bytes.length;
+  pdfBytes.set(o3Bytes, pos); pos += o3Bytes.length;
+  pdfBytes.set(o4HBytes, pos); pos += o4HBytes.length;
+  pdfBytes.set(jpegBytes, pos); pos += jpegBytes.length;
+  pdfBytes.set(o4TBytes, pos); pos += o4TBytes.length;
+  pdfBytes.set(o5Bytes, pos); pos += o5Bytes.length;
+  pdfBytes.set(xrefBytes, pos);
+
+  return pdfBytes;
 }
 
 // ============================================================================
@@ -646,12 +609,8 @@ async function resizeImage(file, targetWidth, targetHeight, format, quality = CO
   canvas.height = targetHeight;
   
   const ctx = canvas.getContext('2d');
-  
-  // Use high-quality image rendering
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  
-  // Draw resized image
   ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
   
   const mimeType = CONFIG.MIME_TYPES[format] || CONFIG.MIME_TYPES['png'];
@@ -676,34 +635,54 @@ async function resizeImage(file, targetWidth, targetHeight, format, quality = CO
 // ============================================================================
 
 /**
- * Compress image to target size using binary search
+ * Helper to render an image onto a canvas and return blob
+ */
+function renderImageToBlob(img, format, quality, width, height) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, width, height);
+  
+  const mimeType = CONFIG.MIME_TYPES[format] || CONFIG.MIME_TYPES['jpg'];
+  
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => blob ? resolve(blob) : reject(new Error('Canvas rendering failed')),
+      mimeType,
+      quality
+    );
+  });
+}
+
+/**
+ * Compress image to target size using binary search and dimension fallback
  * @param {HTMLImageElement} img - Image to compress
  * @param {number} targetSize - Target size in bytes
  * @param {string} format - Output format
  * @param {number} width - Canvas width
  * @param {number} height - Canvas height
- * @returns {Promise<Blob>} Compressed image blob
+ * @returns {Promise<{blob: Blob, width: number, height: number}>} Result
  */
 async function compressImageToSize(img, targetSize, format, width, height) {
-  // Only JPEG and WebP support quality parameter
   const supportsQuality = ['jpg', 'jpeg', 'webp'].includes(format);
+  let currentWidth = width;
+  let currentHeight = height;
   
   if (!supportsQuality) {
-    // For PNG, we can't easily compress further without dimension reduction
-    // Return as-is and let caller handle dimension reduction if needed
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, width, height);
+    // For lossless formats (PNG, etc.), iteratively scale down dimensions to meet target size
+    let bestBlob = await renderImageToBlob(img, format, 1.0, currentWidth, currentHeight);
     
-    return new Promise((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => blob ? resolve(blob) : reject(new Error('Compression failed')),
-        CONFIG.MIME_TYPES[format],
-        1.0
-      );
-    });
+    let scale = 0.88;
+    while (bestBlob.size > targetSize && currentWidth > 16 && currentHeight > 16) {
+      currentWidth = Math.max(16, Math.floor(currentWidth * scale));
+      currentHeight = Math.max(16, Math.floor(currentHeight * scale));
+      bestBlob = await renderImageToBlob(img, format, 1.0, currentWidth, currentHeight);
+    }
+    
+    return { blob: bestBlob, width: currentWidth, height: currentHeight };
   }
   
   // Binary search for optimal quality
@@ -712,77 +691,46 @@ async function compressImageToSize(img, targetSize, format, width, height) {
   let bestBlob = null;
   let iterations = 0;
   
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, width, height);
-  
   while (iterations < CONFIG.BINARY_SEARCH.MAX_ITERATIONS) {
     const quality = (minQuality + maxQuality) / 2;
-    
-    const blob = await new Promise((resolve, reject) => {
-      canvas.toBlob(
-        (b) => b ? resolve(b) : reject(new Error('Compression failed')),
-        CONFIG.MIME_TYPES[format],
-        quality
-      );
-    });
-    
+    const blob = await renderImageToBlob(img, format, quality, currentWidth, currentHeight);
     const sizeDiff = blob.size / targetSize;
     
     // Check if within tolerance
     if (Math.abs(sizeDiff - 1) <= CONFIG.BINARY_SEARCH.TOLERANCE) {
-      return blob;
+      return { blob, width: currentWidth, height: currentHeight };
     }
     
-    // Update best blob if closer to target
-    if (!bestBlob || Math.abs(blob.size - targetSize) < Math.abs(bestBlob.size - targetSize)) {
-      if (blob.size <= targetSize) {
-        bestBlob = blob;
-      }
-    }
-    
-    // Adjust quality range
-    if (blob.size > targetSize) {
-      maxQuality = quality;
-    } else {
+    if (blob.size <= targetSize) {
+      bestBlob = blob;
       minQuality = quality;
-      bestBlob = blob; // This one is under size limit
+    } else {
+      maxQuality = quality;
     }
     
     iterations++;
-    
-    // If range is too small, break
-    if (maxQuality - minQuality < 0.01) {
-      break;
-    }
+    if (maxQuality - minQuality < 0.01) break;
   }
   
-  // If we couldn't get under target size, try reducing dimensions
+  // If lowest quality still exceeds target size, reduce dimensions iteratively
   if (!bestBlob || bestBlob.size > targetSize) {
-    // Reduce dimensions by 10% and try again
-    const newWidth = Math.floor(width * 0.9);
-    const newHeight = Math.floor(height * 0.9);
-    
-    if (newWidth > 10 && newHeight > 10) {
-      const reducedCanvas = document.createElement('canvas');
-      reducedCanvas.width = newWidth;
-      reducedCanvas.height = newHeight;
-      const reducedCtx = reducedCanvas.getContext('2d');
-      reducedCtx.drawImage(img, 0, 0, newWidth, newHeight);
-      
-      const reducedImg = await new Promise((resolve) => {
-        const tempImg = new Image();
-        tempImg.onload = () => resolve(tempImg);
-        tempImg.src = reducedCanvas.toDataURL();
-      });
-      
-      return compressImageToSize(reducedImg, targetSize, format, newWidth, newHeight);
+    let scale = 0.85;
+    while (currentWidth > 16 && currentHeight > 16) {
+      currentWidth = Math.max(16, Math.floor(currentWidth * scale));
+      currentHeight = Math.max(16, Math.floor(currentHeight * scale));
+      const blob = await renderImageToBlob(img, format, CONFIG.QUALITY.LOW, currentWidth, currentHeight);
+      if (blob.size <= targetSize) {
+        return { blob, width: currentWidth, height: currentHeight };
+      }
+      bestBlob = blob;
     }
   }
   
-  return bestBlob || new Blob([], { type: CONFIG.MIME_TYPES[format] });
+  return { 
+    blob: bestBlob || await renderImageToBlob(img, format, CONFIG.QUALITY.MIN, currentWidth, currentHeight),
+    width: currentWidth, 
+    height: currentHeight 
+  };
 }
 
 /**
@@ -792,7 +740,7 @@ async function compressImageToSize(img, targetSize, format, width, height) {
  * @param {string} format - Output format
  * @param {number} width - Target width
  * @param {number} height - Target height
- * @returns {Promise<Blob>} Compressed blob
+ * @returns {Promise<{blob: Blob, width: number, height: number}>} Compressed result
  */
 async function compressToTargetSize(file, targetSize, format, width, height) {
   const img = await loadImage(file);
@@ -856,16 +804,19 @@ async function executeTransformations(file, plan, metadata) {
           break;
           
         case 'compression':
-          // If we need to compress to specific size
           if (currentBlob.size > plan.targetSize) {
-            currentBlob = await compressToTargetSize(
+            const sizeBefore = currentBlob.size;
+            const compResult = await compressToTargetSize(
               blobToFile(currentBlob, file.name),
               plan.targetSize,
               currentFormat,
               currentWidth,
               currentHeight
             );
-            appliedTransformations.push(`compression: ${formatBytes(file.size)} → ${formatBytes(currentBlob.size)}`);
+            currentBlob = compResult.blob;
+            currentWidth = compResult.width;
+            currentHeight = compResult.height;
+            appliedTransformations.push(`compression: ${formatBytes(sizeBefore)} → ${formatBytes(currentBlob.size)}`);
           }
           break;
       }
@@ -917,11 +868,11 @@ function validateResult(blob, constraints, width, height, format) {
   }
   
   // Check dimensions
-  if (constraints.maxWidth && width > constraints.maxWidth) {
+  if (constraints.maxWidth && width && width > constraints.maxWidth) {
     issues.push(`Width ${width}px still exceeds maximum ${constraints.maxWidth}px`);
   }
   
-  if (constraints.maxHeight && height > constraints.maxHeight) {
+  if (constraints.maxHeight && height && height > constraints.maxHeight) {
     issues.push(`Height ${height}px still exceeds maximum ${constraints.maxHeight}px`);
   }
   
@@ -992,23 +943,39 @@ async function transformFile(file, constraints) {
 // EXPORTS
 // ============================================================================
 
+const moduleExports = {
+  CONFIG,
+  transformFile,
+  analyzeMetadata,
+  compareConstraints,
+  planTransformations,
+  executeTransformations,
+  validateResult,
+  convertImageFormat,
+  convertImageToPDF,
+  buildMinimalPDF,
+  resizeImage,
+  compressImageToSize,
+  compressToTargetSize,
+  parseSizeToBytes,
+  formatBytes,
+  detectFileFormat,
+  getFileExtension,
+  changeFileExtension,
+  blobToFile
+};
+
 // Export main function and utilities
 if (typeof module !== 'undefined' && module.exports) {
   // Node.js/CommonJS
-  module.exports = {
-    transformFile,
-    analyzeMetadata,
-    compareConstraints,
-    parseSizeToBytes,
-    formatBytes
-  };
-} else {
+  module.exports = moduleExports;
+}
+
+if (typeof window !== 'undefined') {
   // Browser/Global
   window.FileTransformModule = {
-    transformFile,
-    analyzeMetadata,
-    compareConstraints,
-    parseSizeToBytes,
-    formatBytes
+    ...(window.FileTransformModule || {}),
+    ...moduleExports
   };
 }
+

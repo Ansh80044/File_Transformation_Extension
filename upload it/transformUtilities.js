@@ -6,6 +6,32 @@
  * Additional utilities for advanced file transformation scenarios
  */
 
+// Dependency resolution (Node.js, CommonJS, and Browser globals)
+let transformFileFn, parseSizeToBytesFn, formatBytesFn, analyzeMetadataFn, compareConstraintsFn;
+
+if (typeof require !== 'undefined') {
+  try {
+    const mainMod = require('./fileTransformModule');
+    transformFileFn = mainMod.transformFile;
+    parseSizeToBytesFn = mainMod.parseSizeToBytes;
+    formatBytesFn = mainMod.formatBytes;
+    analyzeMetadataFn = mainMod.analyzeMetadata;
+    compareConstraintsFn = mainMod.compareConstraints;
+  } catch (e) {}
+}
+
+function getHelper(name) {
+  if (typeof window !== 'undefined' && window.FileTransformModule && typeof window.FileTransformModule[name] === 'function') {
+    return window.FileTransformModule[name];
+  }
+  if (name === 'transformFile') return transformFileFn || (typeof transformFile === 'function' ? transformFile : null);
+  if (name === 'parseSizeToBytes') return parseSizeToBytesFn || (typeof parseSizeToBytes === 'function' ? parseSizeToBytes : null);
+  if (name === 'formatBytes') return formatBytesFn || (typeof formatBytes === 'function' ? formatBytes : null);
+  if (name === 'analyzeMetadata') return analyzeMetadataFn || (typeof analyzeMetadata === 'function' ? analyzeMetadata : null);
+  if (name === 'compareConstraints') return compareConstraintsFn || (typeof compareConstraints === 'function' ? compareConstraints : null);
+  return null;
+}
+
 /**
  * Batch transform multiple files
  * @param {File[]} files - Array of files to transform
@@ -15,10 +41,14 @@
  */
 async function batchTransformFiles(files, constraints, progressCallback = null) {
   const results = [];
+  const transform = getHelper('transformFile');
+  if (!transform) {
+    throw new Error('transformFile function is not available.');
+  }
   
   for (let i = 0; i < files.length; i++) {
     try {
-      const result = await transformFile(files[i], constraints);
+      const result = await transform(files[i], constraints);
       results.push({
         ...result,
         originalFile: files[i]
@@ -46,7 +76,7 @@ async function batchTransformFiles(files, constraints, progressCallback = null) 
 
 /**
  * Create a download link for transformed file
- * @param {File} file - File to download
+ * @param {File|Blob} file - File or Blob to download
  * @param {string} linkText - Text for download link
  * @returns {HTMLAnchorElement} Download link element
  */
@@ -54,13 +84,13 @@ function createDownloadLink(file, linkText = 'Download') {
   const url = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = url;
-  link.download = file.name;
+  link.download = file.name || 'transformed-file';
   link.textContent = linkText;
   link.className = 'download-link';
   
   // Cleanup on click
   link.addEventListener('click', () => {
-    setTimeout(() => URL.revokeObjectURL(url), 100);
+    setTimeout(() => URL.revokeObjectURL(url), 200);
   });
   
   return link;
@@ -73,15 +103,15 @@ function createDownloadLink(file, linkText = 'Download') {
  * @returns {string} Recommended format
  */
 function getOptimalFormat(constraints, currentFormat) {
-  if (!constraints.allowedFormats || constraints.allowedFormats.length === 0) {
+  if (!constraints || !constraints.allowedFormats || constraints.allowedFormats.length === 0) {
     return currentFormat;
   }
   
   const allowed = constraints.allowedFormats.map(f => f.toLowerCase());
   
   // If current format is allowed, keep it
-  if (allowed.includes(currentFormat)) {
-    return currentFormat;
+  if (allowed.includes(currentFormat.toLowerCase())) {
+    return currentFormat.toLowerCase();
   }
   
   // Preference order: png (lossless) > jpg (lossy but smaller) > webp > pdf
@@ -104,29 +134,37 @@ function getOptimalFormat(constraints, currentFormat) {
  * @returns {number} Estimated size in bytes
  */
 function estimateFinalSize(metadata, plan) {
-  let estimatedSize = metadata.size;
+  let estimatedSize = (metadata && metadata.size) ? metadata.size : 0;
+  if (!plan || !plan.steps) return Math.floor(estimatedSize);
   
   // Rough estimation based on transformation steps
   for (const step of plan.steps) {
     switch (step.type) {
       case 'format-conversion':
         // PNG is typically 2-3x larger than JPG for photos
-        if (step.to === 'png' && step.from === 'jpg') {
+        if (step.to === 'png' && (step.from === 'jpg' || step.from === 'jpeg')) {
           estimatedSize *= 2.5;
-        } else if (step.to === 'jpg' && step.from === 'png') {
+        } else if ((step.to === 'jpg' || step.to === 'jpeg') && step.from === 'png') {
           estimatedSize *= 0.4;
+        } else if (step.to === 'webp') {
+          estimatedSize *= 0.35;
         }
         break;
         
       case 'resize':
-        // Size reduction is approximately proportional to pixel count reduction
-        const originalPixels = step.from.width * step.from.height;
-        const newPixels = step.to.width * step.to.height;
-        estimatedSize *= (newPixels / originalPixels);
+        if (step.from && step.from.width && step.from.height && step.to && step.to.width && step.to.height) {
+          const originalPixels = step.from.width * step.from.height;
+          const newPixels = step.to.width * step.to.height;
+          if (originalPixels > 0) {
+            estimatedSize *= (newPixels / originalPixels);
+          }
+        }
         break;
         
       case 'compression':
-        estimatedSize = step.targetSize;
+        if (step.targetSize) {
+          estimatedSize = Math.min(estimatedSize, step.targetSize);
+        }
         break;
     }
   }
@@ -181,14 +219,25 @@ function calculateAspectRatioDimensions(currentWidth, currentHeight, targetAspec
  */
 function validateConstraints(constraints) {
   const errors = [];
+  if (!constraints || typeof constraints !== 'object') {
+    return { isValid: false, errors: ['Constraints must be a valid object'], normalized: {} };
+  }
+  
   const normalized = { ...constraints };
+  const parseSize = getHelper('parseSizeToBytes');
   
   // Validate maxSize
-  if (constraints.maxSize) {
-    try {
-      normalized.maxSize = parseSizeToBytes(constraints.maxSize);
-    } catch (error) {
-      errors.push(`Invalid maxSize: ${error.message}`);
+  if (constraints.maxSize !== undefined && constraints.maxSize !== null && constraints.maxSize !== '') {
+    if (parseSize) {
+      try {
+        normalized.maxSize = parseSize(constraints.maxSize);
+      } catch (error) {
+        errors.push(`Invalid maxSize: ${error.message}`);
+      }
+    } else if (typeof constraints.maxSize === 'number') {
+      normalized.maxSize = constraints.maxSize;
+    } else {
+      errors.push('parseSizeToBytes helper is not available to parse maxSize string.');
     }
   }
   
@@ -199,19 +248,19 @@ function validateConstraints(constraints) {
     } else {
       const validFormats = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'pdf'];
       const invalid = constraints.allowedFormats.filter(
-        f => !validFormats.includes(f.toLowerCase())
+        f => !validFormats.includes(String(f).toLowerCase())
       );
       if (invalid.length > 0) {
         errors.push(`Invalid formats: ${invalid.join(', ')}`);
       }
-      normalized.allowedFormats = constraints.allowedFormats.map(f => f.toLowerCase());
+      normalized.allowedFormats = constraints.allowedFormats.map(f => String(f).toLowerCase());
     }
   }
   
   // Validate dimensions
   const dimensionFields = ['maxWidth', 'maxHeight', 'minWidth', 'minHeight'];
   for (const field of dimensionFields) {
-    if (constraints[field] !== undefined) {
+    if (constraints[field] !== undefined && constraints[field] !== null && constraints[field] !== '') {
       const value = Number(constraints[field]);
       if (isNaN(value) || value <= 0) {
         errors.push(`${field} must be a positive number`);
@@ -243,26 +292,31 @@ function validateConstraints(constraints) {
  */
 function generateTransformationReport(result) {
   const lines = [];
+  const formatB = getHelper('formatBytes') || ((b) => `${b} B`);
   
   lines.push('=== File Transformation Report ===\n');
   
-  lines.push('Original File:');
-  lines.push(`  Name: ${result.originalMetadata.name}`);
-  lines.push(`  Size: ${formatBytes(result.originalMetadata.size)}`);
-  lines.push(`  Format: ${result.originalMetadata.format.toUpperCase()}`);
-  if (result.originalMetadata.width) {
-    lines.push(`  Dimensions: ${result.originalMetadata.width} x ${result.originalMetadata.height}px`);
+  if (result.originalMetadata) {
+    lines.push('Original File:');
+    lines.push(`  Name: ${result.originalMetadata.name}`);
+    lines.push(`  Size: ${formatB(result.originalMetadata.size)}`);
+    lines.push(`  Format: ${String(result.originalMetadata.format || '').toUpperCase()}`);
+    if (result.originalMetadata.width) {
+      lines.push(`  Dimensions: ${result.originalMetadata.width} x ${result.originalMetadata.height}px`);
+    }
   }
   
-  lines.push('\nTransformed File:');
-  lines.push(`  Name: ${result.newMetadata.name}`);
-  lines.push(`  Size: ${formatBytes(result.newMetadata.size)}`);
-  lines.push(`  Format: ${result.newMetadata.format.toUpperCase()}`);
-  if (result.newMetadata.width) {
-    lines.push(`  Dimensions: ${result.newMetadata.width} x ${result.newMetadata.height}px`);
+  if (result.newMetadata) {
+    lines.push('\nTransformed File:');
+    lines.push(`  Name: ${result.newMetadata.name}`);
+    lines.push(`  Size: ${formatB(result.newMetadata.size)}`);
+    lines.push(`  Format: ${String(result.newMetadata.format || '').toUpperCase()}`);
+    if (result.newMetadata.width) {
+      lines.push(`  Dimensions: ${result.newMetadata.width} x ${result.newMetadata.height}px`);
+    }
   }
   
-  if (result.transformationsApplied.length > 0) {
+  if (result.transformationsApplied && result.transformationsApplied.length > 0) {
     lines.push('\nTransformations Applied:');
     result.transformationsApplied.forEach((transform, i) => {
       lines.push(`  ${i + 1}. ${transform}`);
@@ -272,20 +326,22 @@ function generateTransformationReport(result) {
   }
   
   lines.push(`\nValidation: ${result.success ? '✓ PASSED' : '✗ FAILED'}`);
-  if (!result.success && result.validation.issues.length > 0) {
+  if (!result.success && result.validation && result.validation.issues && result.validation.issues.length > 0) {
     lines.push('Issues:');
     result.validation.issues.forEach(issue => {
       lines.push(`  - ${issue}`);
     });
   }
   
-  const sizeReduction = result.originalMetadata.size - result.newMetadata.size;
-  const reductionPercent = (sizeReduction / result.originalMetadata.size) * 100;
-  
-  if (sizeReduction > 0) {
-    lines.push(`\nSize Reduction: ${formatBytes(sizeReduction)} (${reductionPercent.toFixed(1)}%)`);
-  } else if (sizeReduction < 0) {
-    lines.push(`\nSize Increase: ${formatBytes(Math.abs(sizeReduction))} (${Math.abs(reductionPercent).toFixed(1)}%)`);
+  if (result.originalMetadata && result.newMetadata) {
+    const sizeReduction = result.originalMetadata.size - result.newMetadata.size;
+    const reductionPercent = (sizeReduction / result.originalMetadata.size) * 100;
+    
+    if (sizeReduction > 0) {
+      lines.push(`\nSize Reduction: ${formatB(sizeReduction)} (${reductionPercent.toFixed(1)}%)`);
+    } else if (sizeReduction < 0) {
+      lines.push(`\nSize Increase: ${formatB(Math.abs(sizeReduction))} (${Math.abs(reductionPercent).toFixed(1)}%)`);
+    }
   }
   
   return lines.join('\n');
@@ -298,9 +354,14 @@ function generateTransformationReport(result) {
  * @returns {Promise<Object>} Comparison result
  */
 async function compareFiles(file1, file2) {
+  const analyze = getHelper('analyzeMetadata');
+  if (!analyze) {
+    throw new Error('analyzeMetadata function is not available.');
+  }
+  
   const [meta1, meta2] = await Promise.all([
-    analyzeMetadata(file1),
-    analyzeMetadata(file2)
+    analyze(file1),
+    analyze(file2)
   ]);
   
   return {
@@ -316,7 +377,7 @@ async function compareFiles(file1, file2) {
 /**
  * Create a preset constraint object
  * @param {string} presetName - Name of preset
- * @returns {Object} Constraint object
+ * @returns {Object|null} Constraint object
  */
 function getConstraintPreset(presetName) {
   const presets = {
@@ -368,36 +429,43 @@ function getConstraintPreset(presetName) {
  * @returns {Promise<boolean>} True if transformation needed
  */
 async function needsTransformation(file, constraints) {
-  const metadata = await analyzeMetadata(file);
-  const comparison = compareConstraints(metadata, constraints);
+  const analyze = getHelper('analyzeMetadata');
+  const compare = getHelper('compareConstraints');
+  if (!analyze || !compare) {
+    throw new Error('Required metadata analysis functions not available.');
+  }
+  const metadata = await analyze(file);
+  const comparison = compare(metadata, constraints);
   return !comparison.isValid;
 }
 
-// Export utilities
+const utilityExports = {
+  batchTransformFiles,
+  createDownloadLink,
+  getOptimalFormat,
+  estimateFinalSize,
+  calculateAspectRatioDimensions,
+  validateConstraints,
+  generateTransformationReport,
+  compareFiles,
+  getConstraintPreset,
+  needsTransformation
+};
+
+// Export utilities for Node.js / CommonJS
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    batchTransformFiles,
-    createDownloadLink,
-    getOptimalFormat,
-    estimateFinalSize,
-    calculateAspectRatioDimensions,
-    validateConstraints,
-    generateTransformationReport,
-    compareFiles,
-    getConstraintPreset,
-    needsTransformation
-  };
-} else {
+  module.exports = utilityExports;
+}
+
+// Export utilities for Browser globals
+if (typeof window !== 'undefined') {
   window.FileTransformUtilities = {
-    batchTransformFiles,
-    createDownloadLink,
-    getOptimalFormat,
-    estimateFinalSize,
-    calculateAspectRatioDimensions,
-    validateConstraints,
-    generateTransformationReport,
-    compareFiles,
-    getConstraintPreset,
-    needsTransformation
+    ...(window.FileTransformUtilities || {}),
+    ...utilityExports
+  };
+  // Also attach to window.FileTransformModule for developer ergonomics
+  window.FileTransformModule = {
+    ...(window.FileTransformModule || {}),
+    ...utilityExports
   };
 }
