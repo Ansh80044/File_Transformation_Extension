@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Local File Transformer",
-  "version": "1.0",
-  "description": "Securely transforms and compresses files directly in the browser.",
+  "name": "OptiUpload Pro - File Transformer",
+  "version": "2.0",
+  "description": "Ultra-fast, zero-server image compression, format conversion (WebP/JPG/PNG), and PDF packaging in your browser.",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Open Transformer"
+    "default_title": "OptiUpload Pro"
   },
-  "permissions": []
+  "permissions": ["storage"]
 }

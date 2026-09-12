@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00c08b"/>
+      <stop offset="100%" stop-color="#00966a"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#00966a" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#1b222c"/>
+  <g transform="translate(20, 20)">
+    <!-- Folded transformer card icon -->
+    <rect x="6" y="10" width="76" height="52" rx="14" fill="url(#grad)" filter="url(#shadow)"/>
+    <path d="M22 34 L38 50 L66 22" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Fold corner line -->
+    <path d="M62 10 L82 30" fill="none" stroke="#1b222c" stroke-width="4"/>
+  </g>
+</svg>

@@ -325,7 +325,7 @@ function generateTransformationReport(result) {
     lines.push('\nNo transformations needed - file already meets constraints');
   }
   
-  lines.push(`\nValidation: ${result.success ? '✓ PASSED' : '✗ FAILED'}`);
+  lines.push(`\nValidation: ${result.success ? 'PASSED' : 'FAILED'}`);
   if (!result.success && result.validation && result.validation.issues && result.validation.issues.length > 0) {
     lines.push('Issues:');
     result.validation.issues.forEach(issue => {
@@ -439,6 +439,94 @@ async function needsTransformation(file, constraints) {
   return !comparison.isValid;
 }
 
+/**
+ * Calculate comprehensive performance and latency metrics
+ * @param {number} originalBytes - Original file size in bytes
+ * @param {number} newBytes - Transformed file size in bytes
+ * @param {number} processingTimeMs - Local processing duration in milliseconds
+ * @param {number} uplinkMbps - Simulated network uplink speed in Mbps (default 10 Mbps)
+ * @returns {Object} Performance metrics
+ */
+function calculateSavingsStats(originalBytes, newBytes, processingTimeMs = 200, uplinkMbps = 10) {
+  const bytesSaved = Math.max(0, originalBytes - newBytes);
+  const percentReduction = originalBytes > 0 ? ((bytesSaved / originalBytes) * 100) : 0;
+  
+  // Bytes per second on uplink
+  const bytesPerSec = (uplinkMbps * 1000 * 1000) / 8;
+  
+  // Traditional: Upload full raw file + 1.5s server queue/processing
+  const traditionalNetworkTimeSec = originalBytes / bytesPerSec;
+  const traditionalTotalSec = traditionalNetworkTimeSec + 1.5;
+  
+  // OptiUpload: Client processing time + smaller file upload + 0s server transform
+  const optiUploadNetworkTimeSec = newBytes / bytesPerSec;
+  const optiUploadTotalSec = (processingTimeMs / 1000) + optiUploadNetworkTimeSec;
+  
+  const latencySavedSec = Math.max(0, traditionalTotalSec - optiUploadTotalSec);
+  const latencyReductionPercent = traditionalTotalSec > 0 ? ((latencySavedSec / traditionalTotalSec) * 100) : 0;
+  const speedupMultiplier = optiUploadTotalSec > 0 ? (traditionalTotalSec / optiUploadTotalSec) : 1;
+  
+  return {
+    bytesSaved,
+    percentReduction: Number(percentReduction.toFixed(1)),
+    traditionalTotalSec: Number(traditionalTotalSec.toFixed(2)),
+    optiUploadTotalSec: Number(optiUploadTotalSec.toFixed(2)),
+    latencySavedSec: Number(latencySavedSec.toFixed(2)),
+    latencyReductionPercent: Number(latencyReductionPercent.toFixed(1)),
+    speedupMultiplier: Number(speedupMultiplier.toFixed(1))
+  };
+}
+
+/**
+ * Session/Local history helper with memory fallback
+ */
+const HISTORY_STORAGE_KEY = 'optiupload_transformation_history';
+let memoryHistory = [];
+
+function saveToHistory(item) {
+  const entry = {
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+    timestamp: new Date().toISOString(),
+    name: item.name,
+    originalSize: item.originalSize,
+    newSize: item.newSize,
+    format: item.format,
+    savingsPercent: item.savingsPercent,
+    durationSec: item.durationSec
+  };
+
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const history = getHistory();
+      history.unshift(entry);
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, 20)));
+      return;
+    }
+  } catch (e) {}
+
+  memoryHistory.unshift(entry);
+  if (memoryHistory.length > 20) memoryHistory.pop();
+}
+
+function getHistory() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const data = localStorage.getItem(HISTORY_STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    }
+  } catch (e) {}
+  return memoryHistory;
+}
+
+function clearHistory() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(HISTORY_STORAGE_KEY);
+    }
+  } catch (e) {}
+  memoryHistory = [];
+}
+
 const utilityExports = {
   batchTransformFiles,
   createDownloadLink,
@@ -449,7 +537,11 @@ const utilityExports = {
   generateTransformationReport,
   compareFiles,
   getConstraintPreset,
-  needsTransformation
+  needsTransformation,
+  calculateSavingsStats,
+  saveToHistory,
+  getHistory,
+  clearHistory
 };
 
 // Export utilities for Node.js / CommonJS

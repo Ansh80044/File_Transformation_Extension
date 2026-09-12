@@ -11,10 +11,10 @@ let failCount = 0;
 function test(name, fn) {
   try {
     fn();
-    console.log(`✓ PASS: ${name}`);
+    console.log(`[PASS] ${name}`);
     passCount++;
   } catch (err) {
-    console.error(`✗ FAIL: ${name}`);
+    console.error(`[FAIL] ${name}`);
     console.error(`  Error: ${err.message}`);
     if (err.stack) {
       console.error(err.stack.split('\n').slice(1, 4).join('\n'));
@@ -271,20 +271,74 @@ async function runAllTests() {
     assert.ok(fs.existsSync(popupPath), `Popup file ${manifest.action.default_popup} must exist!`);
   });
 
-  // 15. Check demo.html and popup.html completeness
-  test('demo.html and popup.html structure & script loads', () => {
+  // 15. Check demo.html, popup.html, and cover.html completeness
+  test('demo.html, popup.html, and cover.html structure & Poppins font links', () => {
     const demoPath = path.join(__dirname, 'demo.html');
     const popupPath = path.join(__dirname, 'popup.html');
+    const coverPath = path.join(__dirname, 'cover.html');
+
     assert.ok(fs.existsSync(demoPath), 'demo.html must exist');
     assert.ok(fs.existsSync(popupPath), 'popup.html must exist');
+    assert.ok(fs.existsSync(coverPath), 'cover.html must exist');
 
     const demoHtml = fs.readFileSync(demoPath, 'utf8');
     const popupHtml = fs.readFileSync(popupPath, 'utf8');
+    const coverHtml = fs.readFileSync(coverPath, 'utf8');
+
+    const popupJsPath = path.join(__dirname, 'popup.js');
+    assert.ok(fs.existsSync(popupJsPath), 'popup.js must exist');
+
+    assert.ok(demoHtml.includes('Poppins'), 'demo.html must include Poppins font');
+    assert.ok(popupHtml.includes('Poppins'), 'popup.html must include Poppins font');
+    assert.ok(coverHtml.includes('Poppins'), 'cover.html must include Poppins font');
 
     assert.ok(demoHtml.includes('fileTransformModule.js'));
     assert.ok(demoHtml.includes('transformUtilities.js'));
     assert.ok(popupHtml.includes('fileTransformModule.js'));
     assert.ok(popupHtml.includes('transformUtilities.js'));
+    assert.ok(popupHtml.includes('popup.js'), 'popup.html must reference external popup.js');
+    assert.ok(!popupHtml.includes('<script>'), 'popup.html must not contain inline scripts for Chrome Extension MV3 CSP compliance');
+  });
+
+  // 16. calculateSavingsStats
+  test('calculateSavingsStats - accurately computes latency reduction and speedup multiplier', () => {
+    // 5MB raw -> 350KB transformed, 180ms processing, 10 Mbps uplink
+    const stats = utils.calculateSavingsStats(5 * 1024 * 1024, 350 * 1024, 180, 10);
+    assert.ok(stats.bytesSaved > 4.5 * 1024 * 1024);
+    assert.ok(stats.percentReduction >= 90);
+    assert.ok(stats.traditionalTotalSec >= 5.0);
+    assert.ok(stats.optiUploadTotalSec <= 0.6);
+    assert.ok(stats.latencySavedSec >= 4.5);
+    assert.ok(stats.latencyReductionPercent >= 85);
+    assert.ok(stats.speedupMultiplier >= 9.0);
+  });
+
+  // 17. History helpers
+  test('history helpers - save, get, and clear', () => {
+    utils.clearHistory();
+    const initial = utils.getHistory();
+    assert.strictEqual(initial.length, 0);
+
+    utils.saveToHistory({
+      name: 'banner.png',
+      originalSize: 2000000,
+      newSize: 250000,
+      format: 'webp',
+      savingsPercent: 87.5,
+      durationSec: 0.15
+    });
+
+    const list = utils.getHistory();
+    assert.strictEqual(list.length, 1);
+    assert.strictEqual(list[0].name, 'banner.png');
+
+    utils.clearHistory();
+    assert.strictEqual(utils.getHistory().length, 0);
+  });
+
+  // 18. blobToBase64 export check
+  test('blobToBase64 helper is exported and defined', () => {
+    assert.strictEqual(typeof mod.blobToBase64, 'function');
   });
 
   console.log(`\n========================================`);

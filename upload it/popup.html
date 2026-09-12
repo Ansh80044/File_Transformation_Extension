@@ -1,555 +1,791 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Local File Transformer</title>
+  <title>OptiUpload - File Transformer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg-header: #1a222d;
+      --bg-page: #ffffff;
+      --bg-card: #ffffff;
+      --bg-pill: #f8fafc;
+      --border-dashed: #d8dee6;
+      --border-solid: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --accent-green: #00b87c;
+      --accent-green-hover: #009f6b;
+      --accent-slate: #5f6c80;
+      --accent-slate-hover: #485366;
+      --pill-radius: 9999px;
+      --card-radius: 20px;
+      --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.04);
+      --shadow-green: 0 4px 14px rgba(0, 184, 124, 0.25);
+    }
+
+    [data-theme="dark"] {
+      --bg-header: #111720;
+      --bg-page: #151b24;
+      --bg-card: #1d2532;
+      --bg-pill: #171f2b;
+      --border-dashed: #2d3848;
+      --border-solid: #2a3442;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent-green: #00c08b;
+      --accent-green-hover: #00a878;
+      --accent-slate: #485568;
+      --accent-slate-hover: #364050;
+      --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
 
     body {
-      width: 400px;
-      min-height: 520px;
-      background: #0f172a;
-      color: #f8fafc;
-      padding: 16px;
+      width: 390px;
+      min-height: 550px;
+      background: var(--bg-page);
+      color: var(--text-main);
       overflow-x: hidden;
     }
 
-    .header {
+    .icon-svg {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* Header */
+    .top-header {
+      background: var(--bg-header);
+      padding: 13px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #fff;
+    }
+
+    .brand-group {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #1e293b;
-      margin-bottom: 14px;
     }
 
-    .header-icon {
-      font-size: 22px;
-      background: linear-gradient(135deg, #6366f1, #a855f7);
-      width: 38px;
-      height: 38px;
+    .brand-icon-box {
+      width: 28px;
+      height: 28px;
+      background: var(--accent-green);
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
     }
 
-    .header-title h1 {
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
+    .brand-name {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
       color: #ffffff;
     }
 
-    .header-title p {
-      font-size: 11px;
-      color: #94a3b8;
+    .brand-name span {
+      color: var(--accent-green);
     }
 
-    .dropzone {
-      border: 2px dashed #334155;
-      background: #1e293b;
-      border-radius: 12px;
-      padding: 24px 16px;
-      text-align: center;
+    .theme-btn {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+      width: 30px;
+      height: 30px;
+      border-radius: var(--pill-radius);
       cursor: pointer;
-      transition: all 0.2s ease;
-      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .dropzone:hover, .dropzone.dragover {
-      border-color: #6366f1;
-      background: #1e1b4b;
-      transform: translateY(-1px);
+    .theme-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
     }
 
-    .dropzone-icon {
-      font-size: 28px;
-      margin-bottom: 6px;
+    /* Tab Bar */
+    .nav-container {
+      padding: 12px 16px 2px 16px;
     }
 
-    .dropzone-text {
+    .segmented-nav {
+      display: flex;
+      background: var(--bg-pill);
+      border: 1px solid var(--border-solid);
+      border-radius: var(--pill-radius);
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .nav-pill {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 0;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: var(--pill-radius);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .nav-pill:hover {
+      color: var(--text-main);
+    }
+
+    .nav-pill.active {
+      background: var(--bg-card);
+      color: var(--text-main);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      font-weight: 700;
+    }
+
+    /* Content Area */
+    .content-area {
+      padding: 12px 16px 16px 16px;
+    }
+
+    .tab-view {
+      display: none;
+    }
+
+    .tab-view.active {
+      display: block;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Preset Selection Chips */
+    .preset-chip-list {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .preset-chip {
+      background: var(--bg-pill);
+      border: 1.5px solid var(--border-solid);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: var(--pill-radius);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .preset-chip:hover {
+      border-color: var(--accent-green);
+      color: var(--text-main);
+    }
+
+    .preset-chip.active {
+      background: var(--accent-green);
+      border-color: var(--accent-green);
+      color: #ffffff;
+      box-shadow: var(--shadow-green);
+    }
+
+    /* Dashed Card Container */
+    .dashed-card {
+      background: var(--bg-card);
+      border: 2px dashed var(--border-dashed);
+      border-radius: var(--card-radius);
+      padding: 18px 14px;
+      text-align: center;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .card-title-text {
       font-size: 13px;
       font-weight: 600;
-      color: #f1f5f9;
-      margin-bottom: 4px;
+      color: var(--text-main);
+      margin-bottom: 12px;
     }
 
-    .dropzone-sub {
-      font-size: 11px;
-      color: #94a3b8;
+    /* Pill File Input Box */
+    .file-pill-box {
+      background: var(--bg-pill);
+      border: 1.5px solid var(--border-solid);
+      border-radius: var(--pill-radius);
+      padding: 9px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .file-pill-box:hover {
+      border-color: var(--accent-green);
+      background: rgba(0, 184, 124, 0.04);
+    }
+
+    .file-pill-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 270px;
     }
 
     input[type="file"] {
       display: none;
     }
 
-    .section-title {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #94a3b8;
-      margin-bottom: 8px;
-    }
-
-    .presets-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      margin-bottom: 14px;
-    }
-
-    .preset-chip {
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #cbd5e1;
-      padding: 7px 4px;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 500;
-      cursor: pointer;
-      text-align: center;
+    /* Live Preview Box */
+    .preview-box {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-pill);
+      border: 1.5px solid var(--border-solid);
+      border-radius: 12px;
+      padding: 7px 10px;
+      margin-bottom: 12px;
+      text-align: left;
       transition: all 0.2s ease;
     }
 
-    .preset-chip:hover {
-      border-color: #6366f1;
-      color: #fff;
+    .preview-thumb-img {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--bg-card);
+      border: 1px solid var(--border-solid);
+      flex-shrink: 0;
     }
 
-    .preset-chip.active {
-      background: linear-gradient(135deg, #4f46e5, #7c3aed);
-      border-color: #6366f1;
-      color: #fff;
-      font-weight: 600;
-      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+    .preview-meta-info {
+      flex: 1;
+      overflow: hidden;
     }
 
-    .custom-box {
-      display: none;
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 14px;
-    }
-
-    .custom-box.show {
-      display: block;
-    }
-
-    .form-row {
+    /* Action Pill Buttons */
+    .pill-buttons-row {
       display: flex;
       gap: 8px;
-      margin-bottom: 8px;
     }
 
-    .form-group {
+    .action-pill-btn {
       flex: 1;
+      height: 42px;
+      border-radius: var(--pill-radius);
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: all 0.15s ease;
+      text-decoration: none;
     }
 
-    .form-group label {
-      display: block;
-      font-size: 10px;
-      color: #94a3b8;
-      margin-bottom: 3px;
-      text-transform: uppercase;
+    .action-pill-btn.slate {
+      background: var(--accent-slate);
+      color: #ffffff;
     }
 
-    .form-group input {
-      width: 100%;
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      color: #f8fafc;
-      padding: 6px 8px;
+    .action-pill-btn.slate:hover {
+      background: var(--accent-slate-hover);
+      transform: translateY(-1px);
+    }
+
+    .action-pill-btn.green {
+      background: var(--accent-green);
+      color: #ffffff;
+      box-shadow: var(--shadow-green);
+    }
+
+    .action-pill-btn.green:hover {
+      background: var(--accent-green-hover);
+      transform: translateY(-1px);
+    }
+
+    /* Results Info Pill */
+    .info-pill-bar {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-solid);
+      border-radius: var(--pill-radius);
+      padding: 11px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .info-pill-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-pill-title {
       font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .savings-badge {
+      background: rgba(0, 184, 124, 0.12);
+      border: 1px solid rgba(0, 184, 124, 0.3);
+      color: var(--accent-green);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: var(--pill-radius);
+    }
+
+    /* Toggle Switch Row */
+    .setting-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 2px;
+      border-top: 1px solid var(--border-solid);
+    }
+
+    .setting-toggle-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .switch-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #cbd5e1;
+      transition: 0.25s;
+      border-radius: var(--pill-radius);
+    }
+
+    .switch-slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.25s;
+      border-radius: 50%;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    input:checked + .switch-slider {
+      background-color: var(--accent-green);
+    }
+
+    input:checked + .switch-slider:before {
+      transform: translateX(16px);
+    }
+
+    /* Custom Form Fields */
+    .form-group-field {
+      margin-bottom: 10px;
+      text-align: left;
+    }
+
+    .form-group-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .field-input {
+      width: 100%;
+      background: var(--bg-pill);
+      border: 1.5px solid var(--border-solid);
+      border-radius: var(--pill-radius);
+      padding: 7px 14px;
+      font-size: 12px;
+      color: var(--text-main);
       outline: none;
     }
 
-    .form-group input:focus {
-      border-color: #6366f1;
+    .field-input:focus {
+      border-color: var(--accent-green);
     }
 
-    .format-pills {
-      display: flex;
-      gap: 6px;
-      margin-top: 4px;
-    }
-
-    .format-pills label {
-      font-size: 11px;
-      color: #cbd5e1;
+    .slider-row {
       display: flex;
       align-items: center;
-      gap: 3px;
+      gap: 8px;
+    }
+
+    .range-input {
+      flex: 1;
+      accent-color: var(--accent-green);
       cursor: pointer;
     }
 
-    .progress-bar-container {
+    .slider-display-val {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-green);
+      min-width: 34px;
+      text-align: right;
+    }
+
+    /* Progress bar */
+    .progress-bar-wrap {
       display: none;
-      background: #1e293b;
-      border-radius: 6px;
-      height: 6px;
+      background: var(--bg-pill);
+      height: 5px;
+      border-radius: var(--pill-radius);
       overflow: hidden;
       margin-bottom: 12px;
     }
 
-    .progress-bar-container.show {
+    .progress-bar-wrap.show {
       display: block;
     }
 
     .progress-bar-fill {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, #6366f1, #a855f7);
-      transition: width 0.3s ease;
+      background: var(--accent-green);
+      transition: width 0.25s ease;
     }
 
-    .results-card {
-      display: none;
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 14px;
-    }
-
-    .results-card.show {
-      display: block;
-    }
-
-    .metrics-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .metric-box {
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 8px 6px;
-      text-align: center;
-    }
-
-    .metric-label {
-      font-size: 9px;
-      color: #94a3b8;
-      text-transform: uppercase;
-      margin-bottom: 2px;
-    }
-
-    .metric-val {
-      font-size: 13px;
-      font-weight: 700;
-      color: #f8fafc;
-    }
-
-    .metric-val.green {
-      color: #10b981;
-    }
-
-    .preview-row {
+    /* Batch List */
+    .batch-card-item {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-solid);
+      border-radius: 14px;
+      padding: 9px 12px;
+      margin-bottom: 7px;
       display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-soft);
     }
 
-    .preview-box {
-      flex: 1;
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 6px;
-      text-align: center;
-    }
-
-    .preview-box h4 {
-      font-size: 10px;
-      color: #94a3b8;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-    }
-
-    .preview-box img {
-      max-width: 100%;
-      height: 80px;
-      object-fit: contain;
-      border-radius: 4px;
-      background: #1e293b;
-    }
-
-    .download-btn {
-      display: block;
-      width: 100%;
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: #ffffff;
-      text-align: center;
-      padding: 10px;
-      border-radius: 8px;
-      font-size: 13px;
+    .batch-title {
+      font-size: 12px;
       font-weight: 600;
-      text-decoration: none;
-      cursor: pointer;
+      color: var(--text-main);
+    }
+
+    .batch-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .btn-save-sm {
+      background: var(--accent-green);
+      color: #fff;
       border: none;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      padding: 4px 10px;
+      border-radius: var(--pill-radius);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
     }
 
-    .download-btn:hover {
-      background: linear-gradient(135deg, #059669, #047857);
-      transform: translateY(-1px);
+    /* Toast */
+    .toast-msg {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%) translateY(70px);
+      background: var(--bg-header);
+      color: #ffffff;
+      padding: 8px 18px;
+      border-radius: var(--pill-radius);
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      transition: transform 0.25s ease;
+      z-index: 1000;
+      pointer-events: none;
     }
 
-    .alert-msg {
-      padding: 8px 10px;
-      border-radius: 6px;
-      font-size: 11px;
-      margin-bottom: 10px;
-    }
-
-    .alert-msg.error {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid #ef4444;
-      color: #fca5a5;
-    }
-
-    .alert-msg.success {
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid #10b981;
-      color: #6ee7b7;
+    .toast-msg.show {
+      transform: translateX(-50%) translateY(0);
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-icon">⚡</div>
-    <div class="header-title">
-      <h1>OptiUpload Transformer</h1>
-      <p>100% Client-Side Compression & Conversion</p>
-    </div>
-  </div>
 
-  <div class="dropzone" id="dropzone">
-    <div class="dropzone-icon">📁</div>
-    <div class="dropzone-text">Drop image or click to browse</div>
-    <div class="dropzone-sub">Supports JPG, PNG, WebP, GIF, BMP, PDF</div>
-    <input type="file" id="fileInput" accept="image/*">
-  </div>
-
-  <div class="section-title">Optimization Preset</div>
-  <div class="presets-grid">
-    <button class="preset-chip active" data-preset="web-optimized">🌐 Web</button>
-    <button class="preset-chip" data-preset="thumbnail">🖼️ Thumb</button>
-    <button class="preset-chip" data-preset="email-attachment">📧 Email</button>
-    <button class="preset-chip" data-preset="mobile-upload">📱 Mobile</button>
-    <button class="preset-chip" data-preset="profile-picture">👤 Profile</button>
-    <button class="preset-chip" data-preset="custom">⚙️ Custom</button>
-  </div>
-
-  <div class="custom-box" id="customBox">
-    <div class="form-row">
-      <div class="form-group">
-        <label>Max Size</label>
-        <input type="text" id="maxSize" placeholder="500KB, 1MB">
+  <!-- Top Dark Header Banner -->
+  <header class="top-header">
+    <div class="brand-group">
+      <div class="brand-icon-box">
+        <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
       </div>
-      <div class="form-group">
-        <label>Max W × H</label>
-        <div style="display: flex; gap: 4px;">
-          <input type="number" id="maxWidth" placeholder="1920">
-          <input type="number" id="maxHeight" placeholder="1080">
+      <div class="brand-name">OPTI<span>UPLOAD</span></div>
+    </div>
+    <button class="theme-btn" id="themeToggleBtn" title="Toggle Light/Dark Mode">
+      <svg class="icon-svg" id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <svg class="icon-svg" id="themeIconMoon" style="display: none;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+  </header>
+
+  <!-- Segmented Tab Navigation -->
+  <div class="nav-container">
+    <nav class="segmented-nav">
+      <button class="nav-pill active" data-tab="single">
+        <svg class="icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Single
+      </button>
+      <button class="nav-pill" data-tab="batch">
+        <svg class="icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        Batch
+      </button>
+      <button class="nav-pill" data-tab="custom">
+        <svg class="icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        Custom
+      </button>
+      <button class="nav-pill" data-tab="history">
+        <svg class="icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History
+      </button>
+    </nav>
+  </div>
+
+  <!-- Main Content Areas -->
+  <main class="content-area">
+
+    <!-- TAB 1: SINGLE OPTIMIZER -->
+    <div class="tab-view active" id="view-single">
+      
+      <!-- Preset Chips -->
+      <div class="preset-chip-list">
+        <button class="preset-chip active" data-preset="web-optimized">Web Ready</button>
+        <button class="preset-chip" data-preset="thumbnail">Thumbnail</button>
+        <button class="preset-chip" data-preset="mobile-upload">Mobile</button>
+        <button class="preset-chip" data-preset="email-attachment">Email Safe</button>
+        <button class="preset-chip" data-preset="profile-picture">Avatar 1:1</button>
+        <button class="preset-chip" data-preset="document-scan">PDF Doc</button>
+      </div>
+
+      <!-- Curvy Dashed Card Area -->
+      <div class="dashed-card" id="dropCard">
+        <div class="card-title-text">Select or Drop Image</div>
+        
+        <div class="file-pill-box" id="filePickerBox">
+          <span class="file-pill-label" id="fileNameDisplay">Choose image file...</span>
+          <svg class="icon-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+        </div>
+
+        <!-- Live Thumbnail Preview -->
+        <div class="preview-box" id="previewContainer">
+          <img class="preview-thumb-img" id="previewThumbnail" alt="Preview Thumbnail">
+          <div class="preview-meta-info" id="previewMeta"></div>
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp">
+
+        <!-- Action Pill Buttons (Change & Download) -->
+        <div class="pill-buttons-row">
+          <button class="action-pill-btn slate" id="btnChangePreset">
+            <svg class="icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Change
+          </button>
+          <button class="action-pill-btn green" id="btnDownload">
+            <svg class="icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </button>
+        </div>
+
+        <button class="action-pill-btn slate" style="width: 100%; height: 32px; font-size: 11px; margin-top: 8px; border: 1px dashed var(--border-solid); background: transparent; color: var(--text-muted);" id="btnTrySample">
+          <svg class="icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+          Try Sample Asset (1-Click Test)
+        </button>
+      </div>
+
+      <!-- Progress -->
+      <div class="progress-bar-wrap" id="progressBar">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+
+      <!-- Results Pill Card -->
+      <div class="info-pill-bar" id="metricsPill">
+        <div class="info-pill-left">
+          <svg class="icon-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-green);">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <span class="info-pill-title" id="metricsTitle">Ready to Optimize</span>
+        </div>
+        <span class="savings-badge" id="metricsSavingsBadge">0% Saved</span>
+      </div>
+
+      <!-- Settings Switches -->
+      <div class="setting-toggle-row">
+        <span class="setting-toggle-text">Auto-download on complete</span>
+        <label class="switch">
+          <input type="checkbox" id="toggleAutoDownload">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-toggle-row">
+        <span class="setting-toggle-text">Copy Base64 Data URL</span>
+        <button class="action-pill-btn slate" style="height: 28px; font-size: 11px; padding: 0 12px; flex: initial;" id="btnCopyBase64">
+          <svg class="icon-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 2: BATCH STUDIO -->
+    <div class="tab-view" id="view-batch">
+      <div class="dashed-card" id="batchDropCard">
+        <div class="card-title-text">Batch Upload Files</div>
+        <div class="file-pill-box" id="batchPickerBox">
+          <span class="file-pill-label" id="batchFileNameDisplay">Select multiple files...</span>
+          <svg class="icon-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <input type="file" id="batchFileInput" accept="image/*" multiple>
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button class="action-pill-btn green" style="flex: 2;" id="btnBatchDownloadAll">
+            <svg class="icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download All
+          </button>
+          <button class="action-pill-btn slate" style="flex: 1; font-size: 11px;" id="btnBatchSample">
+            Try 3 Samples
+          </button>
         </div>
       </div>
-    </div>
-    <div class="form-group">
-      <label>Formats</label>
-      <div class="format-pills">
-        <label><input type="checkbox" value="jpg" checked> JPG</label>
-        <label><input type="checkbox" value="png" checked> PNG</label>
-        <label><input type="checkbox" value="webp" checked> WebP</label>
-        <label><input type="checkbox" value="pdf"> PDF</label>
-      </div>
-    </div>
-  </div>
 
-  <div class="progress-bar-container" id="progressBar">
-    <div class="progress-bar-fill" id="progressFill"></div>
-  </div>
-
-  <div id="alertBox"></div>
-
-  <div class="results-card" id="resultsCard">
-    <div class="metrics-row">
-      <div class="metric-box">
-        <div class="metric-label">Original</div>
-        <div class="metric-val" id="origSizeVal">-</div>
-      </div>
-      <div class="metric-box">
-        <div class="metric-label">Optimized</div>
-        <div class="metric-val" id="newSizeVal">-</div>
-      </div>
-      <div class="metric-box">
-        <div class="metric-label">Savings</div>
-        <div class="metric-val green" id="savingsVal">-</div>
-      </div>
+      <div id="batchQueueList"></div>
     </div>
 
-    <div class="preview-row">
-      <div class="preview-box">
-        <h4>Before</h4>
-        <img id="origImg" src="" alt="Before">
-      </div>
-      <div class="preview-box">
-        <h4>After</h4>
-        <img id="transImg" src="" alt="After">
+    <!-- TAB 3: CUSTOM PRO STUDIO -->
+    <div class="tab-view" id="view-custom">
+      <div class="dashed-card" style="text-align: left;">
+        <div class="card-title-text" style="text-align: center;">Custom Constraints</div>
+
+        <div class="form-group-field">
+          <label>Target Format</label>
+          <select class="field-input" id="customFormatSelect">
+            <option value="webp">WEBP (Web Standard)</option>
+            <option value="jpg">JPG / JPEG (Universal)</option>
+            <option value="png">PNG (Lossless)</option>
+            <option value="pdf">PDF Document (A4)</option>
+          </select>
+        </div>
+
+        <div class="form-group-field">
+          <label>Quality Level</label>
+          <div class="slider-row">
+            <input type="range" class="range-input" id="customQualitySlider" min="10" max="100" value="85">
+            <span class="slider-display-val" id="customQualityVal">85%</span>
+          </div>
+        </div>
+
+        <div class="form-group-field">
+          <label>Max Size (e.g. 300KB, 1MB)</label>
+          <input type="text" class="field-input" id="customMaxSizeInput" placeholder="500KB">
+        </div>
+
+        <div class="form-group-field">
+          <label>Max Width & Height (px)</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="number" class="field-input" id="customMaxW" placeholder="Max W (1920)">
+            <input type="number" class="field-input" id="customMaxH" placeholder="Max H (1080)">
+          </div>
+        </div>
+
+        <button class="action-pill-btn green" style="width: 100%; margin-top: 6px;" id="btnApplyCustom">
+          <svg class="icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Apply & Transform
+        </button>
       </div>
     </div>
 
-    <button class="download-btn" id="downloadBtn">📥 Save Optimized File</button>
-  </div>
+    <!-- TAB 4: HISTORY -->
+    <div class="tab-view" id="view-history">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Session History</span>
+        <button class="action-pill-btn slate" style="height: 25px; font-size: 10px; padding: 0 10px; flex: initial;" id="btnClearHistory">Clear</button>
+      </div>
+      <div id="historyList"></div>
+    </div>
 
+  </main>
+
+  <!-- Toast Notification -->
+  <div class="toast-msg" id="toastPill">Copied to clipboard</div>
+
+  <!-- Scripts -->
   <script src="fileTransformModule.js"></script>
   <script src="transformUtilities.js"></script>
-  <script>
-    const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('fileInput');
-    const presetChips = document.querySelectorAll('.preset-chip');
-    const customBox = document.getElementById('customBox');
-    const resultsCard = document.getElementById('resultsCard');
-    const progressBar = document.getElementById('progressBar');
-    const progressFill = document.getElementById('progressFill');
-    const alertBox = document.getElementById('alertBox');
-    const downloadBtn = document.getElementById('downloadBtn');
-
-    let selectedPreset = 'web-optimized';
-    let currentFile = null;
-    let transformedResult = null;
-
-    const {
-      transformFile,
-      formatBytes,
-      getConstraintPreset,
-      validateConstraints
-    } = Object.assign({}, window.FileTransformUtilities, window.FileTransformModule);
-
-    dropzone.addEventListener('click', () => fileInput.click());
-    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-    dropzone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('dragover');
-      if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
-    });
-
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) handleFile(e.target.files[0]);
-    });
-
-    presetChips.forEach(chip => {
-      chip.addEventListener('click', () => {
-        presetChips.forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        selectedPreset = chip.dataset.preset;
-        customBox.classList.toggle('show', selectedPreset === 'custom');
-        if (currentFile) processFile(currentFile);
-      });
-    });
-
-    function handleFile(file) {
-      if (!file.type.startsWith('image/')) {
-        showAlert('Please upload an image file (JPG, PNG, WebP, GIF, BMP)', 'error');
-        return;
-      }
-      currentFile = file;
-      processFile(file);
-    }
-
-    async function processFile(file) {
-      alertBox.innerHTML = '';
-      resultsCard.classList.remove('show');
-      progressBar.classList.add('show');
-      progressFill.style.width = '35%';
-
-      try {
-        const constraints = getActiveConstraints();
-        const validation = validateConstraints(constraints);
-        if (!validation.isValid) throw new Error(validation.errors.join(', '));
-
-        progressFill.style.width = '70%';
-        const result = await transformFile(file, validation.normalized);
-
-        progressFill.style.width = '100%';
-        setTimeout(() => progressBar.classList.remove('show'), 300);
-
-        transformedResult = result;
-        displayResults(result);
-      } catch (err) {
-        progressBar.classList.remove('show');
-        showAlert(err.message, 'error');
-      }
-    }
-
-    function getActiveConstraints() {
-      if (selectedPreset === 'custom') {
-        const maxSize = document.getElementById('maxSize').value;
-        const maxWidth = document.getElementById('maxWidth').value;
-        const maxHeight = document.getElementById('maxHeight').value;
-        const formats = Array.from(document.querySelectorAll('.format-pills input:checked')).map(c => c.value);
-        return {
-          ...(maxSize && { maxSize }),
-          ...(maxWidth && { maxWidth: parseInt(maxWidth) }),
-          ...(maxHeight && { maxHeight: parseInt(maxHeight) }),
-          ...(formats.length > 0 && { allowedFormats: formats })
-        };
-      }
-      return getConstraintPreset(selectedPreset);
-    }
-
-    function displayResults(result) {
-      const origSize = result.originalMetadata.size;
-      const newSize = result.newMetadata.size;
-      const savings = origSize - newSize;
-      const savingsPct = origSize > 0 ? ((savings / origSize) * 100).toFixed(1) : 0;
-
-      document.getElementById('origSizeVal').textContent = formatBytes(origSize);
-      document.getElementById('newSizeVal').textContent = formatBytes(newSize);
-      document.getElementById('savingsVal').textContent = savings > 0 ? `-${savingsPct}%` : `+${Math.abs(savingsPct)}%`;
-
-      document.getElementById('origImg').src = URL.createObjectURL(currentFile);
-      if (result.newMetadata.format !== 'pdf') {
-        document.getElementById('transImg').src = URL.createObjectURL(result.transformedFile);
-      }
-
-      resultsCard.classList.add('show');
-      showAlert('Optimization complete!', 'success');
-    }
-
-    downloadBtn.addEventListener('click', () => {
-      if (!transformedResult) return;
-      const url = URL.createObjectURL(transformedResult.transformedFile);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = transformedResult.transformedFile.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 200);
-    });
-
-    function showAlert(msg, type) {
-      alertBox.innerHTML = `<div class="alert-msg ${type}">${msg}</div>`;
-    }
-  </script>
+  <script src="popup.js"></script>
 </body>
 </html>

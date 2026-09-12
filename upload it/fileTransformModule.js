@@ -347,24 +347,29 @@ function planTransformations(metadata, constraints, comparisonResult) {
     targetWidth: metadata.width,
     targetHeight: metadata.height,
     targetSize: metadata.size,
-    quality: CONFIG.QUALITY.HIGH
+    quality: constraints && constraints.quality !== undefined ? Number(constraints.quality) : CONFIG.QUALITY.HIGH
   };
   
-  // If already valid, no transformations needed
-  if (comparisonResult.isValid) {
-    return plan;
-  }
-  
-  // Step 1: Format Conversion (if needed)
-  if (comparisonResult.requiredTransformations.includes('format-conversion')) {
+  // Explicit target format override if provided
+  const explicitFormat = constraints.targetFormat || (constraints.allowedFormats && constraints.allowedFormats.length === 1 ? constraints.allowedFormats[0] : null);
+  if (explicitFormat && explicitFormat.toLowerCase() !== metadata.format.toLowerCase()) {
+    plan.targetFormat = explicitFormat.toLowerCase();
+    plan.steps.push({
+      type: 'format-conversion',
+      from: metadata.format,
+      to: plan.targetFormat
+    });
+  } else if (comparisonResult.requiredTransformations && comparisonResult.requiredTransformations.includes('format-conversion')) {
     // Choose the first allowed format that we can convert to
     const allowedFormats = constraints.allowedFormats.map(f => f.toLowerCase());
     
-    // Prefer PNG for lossless, JPG for lossy compression
-    if (allowedFormats.includes('png')) {
-      plan.targetFormat = 'png';
+    // Prefer WebP > JPG > PNG > PDF
+    if (allowedFormats.includes('webp')) {
+      plan.targetFormat = 'webp';
     } else if (allowedFormats.includes('jpg') || allowedFormats.includes('jpeg')) {
       plan.targetFormat = 'jpg';
+    } else if (allowedFormats.includes('png')) {
+      plan.targetFormat = 'png';
     } else if (allowedFormats.includes('pdf')) {
       plan.targetFormat = 'pdf';
     } else {
@@ -377,9 +382,22 @@ function planTransformations(metadata, constraints, comparisonResult) {
       to: plan.targetFormat
     });
   }
+
+  // Handle explicit percentage scale if specified (e.g. scale: 0.5 for 50%)
+  if (constraints.scale && Number(constraints.scale) > 0 && Number(constraints.scale) < 1.0 && metadata.width && metadata.height) {
+    const scaledWidth = Math.max(16, Math.floor(metadata.width * Number(constraints.scale)));
+    const scaledHeight = Math.max(16, Math.floor(metadata.height * Number(constraints.scale)));
+    plan.targetWidth = scaledWidth;
+    plan.targetHeight = scaledHeight;
+    plan.steps.push({
+      type: 'resize',
+      from: { width: metadata.width, height: metadata.height },
+      to: { width: scaledWidth, height: scaledHeight }
+    });
+  }
   
-  // Step 2: Resize (if needed)
-  if (comparisonResult.requiredTransformations.includes('resize')) {
+  // Step 2: Resize based on constraints (if needed)
+  else if (comparisonResult.requiredTransformations && comparisonResult.requiredTransformations.includes('resize') && metadata.width && metadata.height) {
     let newWidth = metadata.width;
     let newHeight = metadata.height;
     
@@ -420,13 +438,19 @@ function planTransformations(metadata, constraints, comparisonResult) {
   }
   
   // Step 3: Compression (if needed for size constraint)
-  if (comparisonResult.requiredTransformations.includes('compression')) {
+  if (comparisonResult.requiredTransformations && comparisonResult.requiredTransformations.includes('compression')) {
     const maxBytes = parseSizeToBytes(constraints.maxSize);
     plan.targetSize = maxBytes;
     
     plan.steps.push({
       type: 'compression',
       targetSize: maxBytes
+    });
+  } else if (constraints.quality && Number(constraints.quality) < 0.95 && ['jpg', 'jpeg', 'webp'].includes(plan.targetFormat)) {
+    // If explicit lower quality requested without strict size target
+    plan.steps.push({
+      type: 'quality-adjust',
+      quality: Number(constraints.quality)
     });
   }
   
@@ -939,6 +963,20 @@ async function transformFile(file, constraints) {
   }
 }
 
+/**
+ * Convert Blob or File to Base64 / Data URL
+ * @param {Blob|File} blob - Blob to convert
+ * @returns {Promise<string>} Base64 Data URL
+ */
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
@@ -962,7 +1000,8 @@ const moduleExports = {
   detectFileFormat,
   getFileExtension,
   changeFileExtension,
-  blobToFile
+  blobToFile,
+  blobToBase64
 };
 
 // Export main function and utilities
